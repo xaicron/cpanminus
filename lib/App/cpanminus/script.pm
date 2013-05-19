@@ -1358,7 +1358,12 @@ DIAG
     my @uninst_files = $self->uninstall_target($metadata, $packlist);
 
     $self->ask_permission($module, \@uninst_files) or return;
-    $self->uninstall_files(@uninst_files, $packlist);
+    my $ret = $self->uninstall_files(@uninst_files, $packlist);
+
+    unless ($ret) {
+        $self->diag_fail("Failed to uninstall $module");
+        return;
+    }
 
     $self->diag("Successfully uninstalled $module\n", 1);
 
@@ -1450,8 +1455,16 @@ sub uninstall_files {
     $self->diag("\n");
 
     for my $file (@files) {
+        unless (-f $file) {
+            $self->diag("Skip: $file\n");
+            next;
+        }
+
         $self->diag("Unlink: $file\n");
-        unlink $file or $self->diag_fail("$!: $file");
+        unlink $file or do {
+            $self->diag_fail("$!: $file");
+            return; # bailout
+        };
     }
 
     $self->diag("\n");
